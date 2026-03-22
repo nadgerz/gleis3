@@ -194,4 +194,5 @@ function generateAnnouncement() {
 }
 
 // Export for use in main app
-export { generateAnnouncement, LINES, T }
+if (typeof module !== 'undefined')
+    module.exports = { generateAnnouncement, LINES, T }
