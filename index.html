@@ -1,494 +1,633 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<meta name="theme-color" content="#f59e0b">
-<title>TranslatTannoy</title>
-<link rel="manifest" href="manifest.json">
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --amber: #f59e0b;
-    --amber-dim: #78490a;
-    --red: #ef4444;
-    --green: #22c55e;
-    --bg:  #080808;
-    --bg2: #111;
-    --dim: #444;
-    --mono: 'Share Tech Mono', monospace;
-    --cond: 'Barlow Condensed', sans-serif;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--amber);
-    font-family: var(--cond);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(transparent 0px, transparent 3px, rgba(0,0,0,0.07) 3px, rgba(0,0,0,0.07) 4px);
-    pointer-events: none;
-    z-index: 999;
-  }
-
-  .state { display: none; flex-direction: column; flex: 1; }
-  .state.active { display: flex; }
-
-  /* ── STATE 1: ONBOARDING ── */
-  #state-onboard {
-    justify-content: center;
-    align-items: center;
-    padding: 40px 24px;
-    gap: 32px;
-    text-align: center;
-  }
-
-  .onboard-station {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--dim);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    line-height: 2;
-  }
-
-  .onboard-station span {
-    color: var(--amber);
-    display: block;
-    font-size: 20px;
-    letter-spacing: 0.05em;
-  }
-
-  .onboard-prompt {
-    font-size: 22px;
-    font-weight: 300;
-    color: #888;
-  }
-
-  .platform-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    width: 100%;
-    max-width: 300px;
-  }
-
-  .platform-choice {
-    background: var(--bg2);
-    border: 1px solid var(--amber-dim);
-    color: var(--amber);
-    font-family: var(--mono);
-    font-size: 28px;
-    padding: 22px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: center;
-    line-height: 1;
-  }
-
-  .platform-choice small {
-    display: block;
-    font-size: 10px;
-    color: var(--dim);
-    letter-spacing: 0.2em;
-    margin-bottom: 6px;
-  }
-
-  .platform-choice:hover { background: rgba(245,158,11,0.1); border-color: var(--amber); }
-
-  .onboard-lang {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--dim);
-    letter-spacing: 0.1em;
-  }
-
-  /* ── STATE 2: WATCHING ── */
-  .watch-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px 20px;
-    border-bottom: 1px solid #1a1a1a;
-  }
-
-  .watch-platform {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--dim);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-  }
-
-  .watch-platform strong {
-    color: var(--amber);
-    font-size: 20px;
-    margin-left: 6px;
-  }
-
-  .watch-clock {
-    font-family: var(--mono);
-    font-size: 20px;
-    letter-spacing: 0.1em;
-  }
-
-  /* The main announcement — big, readable, calm */
-  .watch-main {
-    padding: 28px 20px 20px;
-    border-bottom: 1px solid #1a1a1a;
-    min-height: 170px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 12px;
-  }
-
-  .watch-badge {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.15em;
-    padding: 3px 10px;
-    border-radius: 2px;
-    display: inline-block;
-    text-transform: uppercase;
-    align-self: flex-start;
-  }
-
-  .badge-delay    { background: rgba(245,158,11,0.1);  border: 1px solid var(--amber-dim); color: var(--amber); }
-  .badge-change   { background: rgba(239,68,68,0.1);   border: 1px solid #7f1d1d;          color: var(--red); }
-  .badge-cancel   { background: rgba(239,68,68,0.15);  border: 1px solid #7f1d1d;          color: var(--red); }
-  .badge-arriving { background: rgba(34,197,94,0.1);   border: 1px solid #14532d;           color: var(--green); }
-
-  .watch-text {
-    font-size: 26px;
-    font-weight: 400;
-    line-height: 1.35;
-    color: var(--amber);
-  }
-
-  .watch-text.blink { animation: flashIn 0.35s ease-out; }
-
-  @keyframes flashIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .watch-sub {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--dim);
-    letter-spacing: 0.08em;
-  }
-
-  /* Log */
-  .watch-log {
-    flex: 1;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #1a1a1a transparent;
-  }
-
-  .log-empty {
-    padding: 24px 20px;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--dim);
-    letter-spacing: 0.1em;
-  }
-
-  .log-row {
-    display: grid;
-    grid-template-columns: 48px 1fr;
-    gap: 12px;
-    padding: 12px 20px;
-    border-bottom: 1px solid #161616;
-    animation: slideIn 0.25s ease-out;
-    cursor: pointer;
-    transition: background 0.1s;
-  }
-
-  .log-row:hover { background: #111; }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateX(-8px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
-
-  .log-time { font-family: var(--mono); font-size: 12px; color: var(--dim); padding-top: 2px; }
-  .log-msg  { font-size: 16px; line-height: 1.4; color: #666; }
-  .log-msg.delay-t  { color: #6b3d08; }
-  .log-msg.change-t { color: #7f1d1d; }
-  .log-msg.cancel-t { color: #7f1d1d; }
-  .log-msg.arrive-t { color: #14532d; }
-
-  /* Footer */
-  .watch-footer {
-    padding: 10px 20px;
-    border-top: 1px solid #1a1a1a;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .footer-station { font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: 0.08em; }
-
-  .change-link {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--dim);
-    background: none;
-    border: none;
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    padding: 4px 0;
-    letter-spacing: 0.08em;
-  }
-  .change-link:hover { color: var(--amber); }
-
-  /* Demo bar — clearly separated from the real UI */
-  .demo-bar {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    background: rgba(8,8,8,0.96);
-    border-top: 1px solid #1f1f1f;
-    padding: 8px 16px;
-    display: flex;
-    gap: 8px;
-    z-index: 100;
-  }
-
-  .demo-btn {
-    flex: 1;
-    background: #111;
-    color: var(--amber);
-    border: 1px solid #2a2a2a;
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 8px;
-    border-radius: 3px;
-    cursor: pointer;
-    letter-spacing: 0.08em;
-    transition: background 0.12s;
-  }
-  .demo-btn:hover { background: rgba(245,158,11,0.08); }
-  .demo-btn.on { border-color: var(--green); color: var(--green); }
-
-  .pad { height: 52px; }
-</style>
-</head>
-<body>
-
-<!-- STATE 1: ONBOARDING -->
-<div class="state" id="state-onboard">
-  <div class="onboard-station">
-    You are at
-    <span id="ob-station">…</span>
-  </div>
-
-  <div class="onboard-prompt">Which platform are you on?</div>
-
-  <div class="platform-grid" id="platform-grid"></div>
-
-  <div class="onboard-lang">
-    Showing announcements in: <span id="ob-lang-name">English</span>
-  </div>
-</div>
-
-
-<!-- STATE 2: WATCHING -->
-<div class="state" id="state-watch">
-
-  <div class="watch-header">
-    <div class="watch-platform">
-      Gleis<strong id="w-platform">—</strong>
-      &nbsp;<span id="w-station-short" style="font-size:11px"></span>
-    </div>
-    <div class="watch-clock" id="w-clock">00:00</div>
-  </div>
-
-  <div class="watch-main">
-    <div id="w-badge" class="watch-badge badge-delay" style="display:none"></div>
-    <div class="watch-text" id="w-text">Waiting for announcements…</div>
-    <div class="watch-sub" id="w-sub"></div>
-  </div>
-
-  <div class="watch-log" id="w-log">
-    <div class="log-empty">No earlier announcements</div>
-  </div>
-
-  <div class="watch-footer">
-    <span class="footer-station" id="w-station-full"></span>
-    <button class="change-link" onclick="changePlatform()">change platform</button>
-  </div>
-
-  <div class="pad"></div>
-</div>
-
-
-<!-- Demo controls -->
-<div class="demo-bar" id="demo-bar" style="display:none">
-  <button class="demo-btn" onclick="fireOne()">Next announcement</button>
-  <button class="demo-btn" id="auto-btn" onclick="toggleAuto()">Auto: off</button>
-</div>
-
-
-<script src="announcements.js"></script>
-<script>
-const S = {
-  station: 'Königs Wusterhausen',
-  short: 'KW',
-  platforms: ['1','2','3','4'],
-  platform: null,
-  lang: 'en',
-  autoTimer: null,
-  autoOn: false,
-};
-
-// Pick language from browser — no UI needed
-const LANGS = { en:'English', de:'Deutsch', tr:'Türkçe', fr:'Français', it:'Italiano', es:'Español', ja:'日本語' };
-const bl = (navigator.language || 'en').split('-')[0];
-S.lang = LANGS[bl] ? bl : 'en';
-
-const TYPE_LABELS = { delay:'Delayed', platformChange:'Platform change', cancelled:'Cancelled', arriving:'Arriving' };
-const TYPE_BADGE  = { delay:'badge-delay', platformChange:'badge-change', cancelled:'badge-cancel', arriving:'badge-arriving' };
-
-// ── Boot ──
-function boot() {
-  const saved = localStorage.getItem('tt-platform');
-  if (saved && S.platforms.includes(saved)) {
-    S.platform = saved;
-    showWatch();
-  } else {
-    showOnboard();
-  }
-  startClock();
-}
-
-// ── States ──
-function activate(id) {
-  document.querySelectorAll('.state').forEach(el => el.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-function showOnboard() {
-  document.getElementById('ob-station').textContent = S.station;
-  document.getElementById('ob-lang-name').textContent = LANGS[S.lang];
-  const grid = document.getElementById('platform-grid');
-  grid.innerHTML = '';
-  for (const p of S.platforms) {
-    const btn = document.createElement('button');
-    btn.className = 'platform-choice';
-    btn.innerHTML = `<small>GLEIS</small>${p}`;
-    btn.onclick = () => selectPlatform(p);
-    grid.appendChild(btn);
-  }
-  activate('state-onboard');
-  document.getElementById('demo-bar').style.display = 'none';
-}
-
-function selectPlatform(p) {
-  S.platform = p;
-  localStorage.setItem('tt-platform', p);
-  showWatch();
-}
-
-function showWatch() {
-  document.getElementById('w-platform').textContent = S.platform;
-  document.getElementById('w-station-short').textContent = S.short;
-  document.getElementById('w-station-full').textContent = S.station;
-  activate('state-watch');
-  document.getElementById('demo-bar').style.display = 'flex';
-}
-
-function changePlatform() {
-  localStorage.removeItem('tt-platform');
-  S.platform = null;
-  S.autoOn = false;
-  clearInterval(S.autoTimer);
-  document.getElementById('auto-btn').textContent = 'Auto: off';
-  document.getElementById('auto-btn').classList.remove('on');
-  document.getElementById('w-log').innerHTML = '<div class="log-empty">No earlier announcements</div>';
-  document.getElementById('w-badge').style.display = 'none';
-  document.getElementById('w-text').textContent = 'Waiting for announcements…';
-  document.getElementById('w-sub').textContent = '';
-  showOnboard();
-}
-
-// ── Clock (updates every minute — no need for every second) ──
-function startClock() {
-  const tick = () => {
-    document.getElementById('w-clock').textContent =
-      new Date().toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
-  };
-  tick();
-  setInterval(tick, 10000);
-}
-
-// ── Announcements ──
-function fireOne() {
-  const ann = generateAnnouncement();
-  if (ann.platform !== S.platform) return; // not our platform
-
-  const text = ann.translations[S.lang] || ann.translations.en;
-
-  // Update main display
-  const badge = document.getElementById('w-badge');
-  badge.className = 'watch-badge ' + TYPE_BADGE[ann.type];
-  badge.textContent = TYPE_LABELS[ann.type] + (ann.type === 'delay' ? ` +${ann.data.mins} min` : '');
-  badge.style.display = 'inline-block';
-
-  const mainText = document.getElementById('w-text');
-  mainText.textContent = text;
-  mainText.classList.remove('blink');
-  void mainText.offsetWidth;
-  mainText.classList.add('blink');
-
-  document.getElementById('w-sub').textContent =
-    ann.data.line ? `${ann.data.line} · ${ann.timestamp}` : ann.timestamp;
-
-  // Log
-  const log = document.getElementById('w-log');
-  const empty = log.querySelector('.log-empty');
-  if (empty) empty.remove();
-
-  const typeClass = { delay:'delay-t', platformChange:'change-t', cancelled:'cancel-t', arriving:'arrive-t' }[ann.type];
-  const row = document.createElement('div');
-  row.className = 'log-row';
-  row.innerHTML = `<span class="log-time">${ann.timestamp}</span><span class="log-msg ${typeClass}">${text}</span>`;
-  row.onclick = () => { mainText.textContent = text; mainText.classList.remove('blink'); void mainText.offsetWidth; mainText.classList.add('blink'); };
-  log.insertBefore(row, log.firstChild);
-  while (log.children.length > 20) log.removeChild(log.lastChild);
-}
-
-// ── Auto ──
-function toggleAuto() {
-  S.autoOn = !S.autoOn;
-  const btn = document.getElementById('auto-btn');
-  btn.textContent = S.autoOn ? 'Auto: on' : 'Auto: off';
-  btn.classList.toggle('on', S.autoOn);
-  if (S.autoOn) {
-    fireOne();
-    // Try every 4s; ~25% chance of hitting current platform = realistic ~16s between announcements
-    S.autoTimer = setInterval(fireOne, 4000);
-  } else {
-    clearInterval(S.autoTimer);
-  }
-}
-
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
-
-boot();
-</script>
-</body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, maximum-scale=1"
+        />
+        <meta name="theme-color" content="#f59e0b" />
+        <title>TranslatTannoy</title>
+        <link rel="manifest" href="manifest.json" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --amber: #f59e0b;
+                --amber-dim: #78490a;
+                --red: #ef4444;
+                --green: #22c55e;
+                --bg: #080808;
+                --bg2: #111;
+                --dim: #444;
+                --mono: 'Share Tech Mono', monospace;
+                --cond: 'Barlow Condensed', sans-serif;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                background: var(--bg);
+                color: var(--amber);
+                font-family: var(--cond);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            body::after {
+                content: '';
+                position: fixed;
+                inset: 0;
+                background: repeating-linear-gradient(
+                    transparent 0px,
+                    transparent 3px,
+                    rgba(0, 0, 0, 0.07) 3px,
+                    rgba(0, 0, 0, 0.07) 4px
+                );
+                pointer-events: none;
+                z-index: 999;
+            }
+
+            .state {
+                display: none;
+                flex-direction: column;
+                flex: 1;
+            }
+            .state.active {
+                display: flex;
+            }
+
+            /* ── STATE 1: ONBOARDING ── */
+            #state-onboard {
+                justify-content: center;
+                align-items: center;
+                padding: 40px 24px;
+                gap: 32px;
+                text-align: center;
+            }
+
+            .onboard-station {
+                font-family: var(--mono);
+                font-size: 12px;
+                color: var(--dim);
+                letter-spacing: 0.15em;
+                text-transform: uppercase;
+                line-height: 2;
+            }
+
+            .onboard-station span {
+                color: var(--amber);
+                display: block;
+                font-size: 20px;
+                letter-spacing: 0.05em;
+            }
+
+            .onboard-prompt {
+                font-size: 22px;
+                font-weight: 300;
+                color: #888;
+            }
+
+            .platform-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .platform-choice {
+                background: var(--bg2);
+                border: 1px solid var(--amber-dim);
+                color: var(--amber);
+                font-family: var(--mono);
+                font-size: 28px;
+                padding: 22px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: all 0.15s;
+                text-align: center;
+                line-height: 1;
+            }
+
+            .platform-choice small {
+                display: block;
+                font-size: 10px;
+                color: var(--dim);
+                letter-spacing: 0.2em;
+                margin-bottom: 6px;
+            }
+
+            .platform-choice:hover {
+                background: rgba(245, 158, 11, 0.1);
+                border-color: var(--amber);
+            }
+
+            .onboard-lang {
+                font-family: var(--mono);
+                font-size: 11px;
+                color: var(--dim);
+                letter-spacing: 0.1em;
+            }
+
+            /* ── STATE 2: WATCHING ── */
+            .watch-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 14px 20px;
+                border-bottom: 1px solid #1a1a1a;
+            }
+
+            .watch-platform {
+                font-family: var(--mono);
+                font-size: 12px;
+                color: var(--dim);
+                letter-spacing: 0.15em;
+                text-transform: uppercase;
+            }
+
+            .watch-platform strong {
+                color: var(--amber);
+                font-size: 20px;
+                margin-left: 6px;
+            }
+
+            .watch-clock {
+                font-family: var(--mono);
+                font-size: 20px;
+                letter-spacing: 0.1em;
+            }
+
+            /* The main announcement — big, readable, calm */
+            .watch-main {
+                padding: 28px 20px 20px;
+                border-bottom: 1px solid #1a1a1a;
+                min-height: 170px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                gap: 12px;
+            }
+
+            .watch-badge {
+                font-family: var(--mono);
+                font-size: 11px;
+                letter-spacing: 0.15em;
+                padding: 3px 10px;
+                border-radius: 2px;
+                display: inline-block;
+                text-transform: uppercase;
+                align-self: flex-start;
+            }
+
+            .badge-delay {
+                background: rgba(245, 158, 11, 0.1);
+                border: 1px solid var(--amber-dim);
+                color: var(--amber);
+            }
+            .badge-change {
+                background: rgba(239, 68, 68, 0.1);
+                border: 1px solid #7f1d1d;
+                color: var(--red);
+            }
+            .badge-cancel {
+                background: rgba(239, 68, 68, 0.15);
+                border: 1px solid #7f1d1d;
+                color: var(--red);
+            }
+            .badge-arriving {
+                background: rgba(34, 197, 94, 0.1);
+                border: 1px solid #14532d;
+                color: var(--green);
+            }
+
+            .watch-text {
+                font-size: 26px;
+                font-weight: 400;
+                line-height: 1.35;
+                color: var(--amber);
+            }
+
+            .watch-text.blink {
+                animation: flashIn 0.35s ease-out;
+            }
+
+            @keyframes flashIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(6px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .watch-sub {
+                font-family: var(--mono);
+                font-size: 12px;
+                color: var(--dim);
+                letter-spacing: 0.08em;
+            }
+
+            /* Log */
+            .watch-log {
+                flex: 1;
+                overflow-y: auto;
+                scrollbar-width: thin;
+                scrollbar-color: #1a1a1a transparent;
+            }
+
+            .log-empty {
+                padding: 24px 20px;
+                font-family: var(--mono);
+                font-size: 12px;
+                color: var(--dim);
+                letter-spacing: 0.1em;
+            }
+
+            .log-row {
+                display: grid;
+                grid-template-columns: 48px 1fr;
+                gap: 12px;
+                padding: 12px 20px;
+                border-bottom: 1px solid #161616;
+                animation: slideIn 0.25s ease-out;
+                cursor: pointer;
+                transition: background 0.1s;
+            }
+
+            .log-row:hover {
+                background: #111;
+            }
+
+            @keyframes slideIn {
+                from {
+                    opacity: 0;
+                    transform: translateX(-8px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateX(0);
+                }
+            }
+
+            .log-time {
+                font-family: var(--mono);
+                font-size: 12px;
+                color: var(--dim);
+                padding-top: 2px;
+            }
+            .log-msg {
+                font-size: 16px;
+                line-height: 1.4;
+                color: #666;
+            }
+            .log-msg.delay-t {
+                color: #6b3d08;
+            }
+            .log-msg.change-t {
+                color: #7f1d1d;
+            }
+            .log-msg.cancel-t {
+                color: #7f1d1d;
+            }
+            .log-msg.arrive-t {
+                color: #14532d;
+            }
+
+            /* Footer */
+            .watch-footer {
+                padding: 10px 20px;
+                border-top: 1px solid #1a1a1a;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .footer-station {
+                font-family: var(--mono);
+                font-size: 11px;
+                color: var(--dim);
+                letter-spacing: 0.08em;
+            }
+
+            .change-link {
+                font-family: var(--mono);
+                font-size: 11px;
+                color: var(--dim);
+                background: none;
+                border: none;
+                cursor: pointer;
+                text-decoration: underline;
+                text-underline-offset: 3px;
+                padding: 4px 0;
+                letter-spacing: 0.08em;
+            }
+            .change-link:hover {
+                color: var(--amber);
+            }
+
+            /* Demo bar — clearly separated from the real UI */
+            .demo-bar {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(8, 8, 8, 0.96);
+                border-top: 1px solid #1f1f1f;
+                padding: 8px 16px;
+                display: flex;
+                gap: 8px;
+                z-index: 100;
+            }
+
+            .demo-btn {
+                flex: 1;
+                background: #111;
+                color: var(--amber);
+                border: 1px solid #2a2a2a;
+                font-family: var(--mono);
+                font-size: 11px;
+                padding: 8px;
+                border-radius: 3px;
+                cursor: pointer;
+                letter-spacing: 0.08em;
+                transition: background 0.12s;
+            }
+            .demo-btn:hover {
+                background: rgba(245, 158, 11, 0.08);
+            }
+            .demo-btn.on {
+                border-color: var(--green);
+                color: var(--green);
+            }
+
+            .pad {
+                height: 52px;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- STATE 1: ONBOARDING -->
+        <div class="state" id="state-onboard">
+            <div class="onboard-station">
+                You are at
+                <span id="ob-station">…</span>
+            </div>
+
+            <div class="onboard-prompt">Which platform are you on?</div>
+
+            <div class="platform-grid" id="platform-grid"></div>
+
+            <div class="onboard-lang">
+                Showing announcements in: <span id="ob-lang-name">English</span>
+            </div>
+        </div>
+
+        <!-- STATE 2: WATCHING -->
+        <div class="state" id="state-watch">
+            <div class="watch-header">
+                <div class="watch-platform">
+                    Gleis<strong id="w-platform">—</strong> &nbsp;<span
+                        id="w-station-short"
+                        style="font-size: 11px"
+                    ></span>
+                </div>
+                <div class="watch-clock" id="w-clock">00:00</div>
+            </div>
+
+            <div class="watch-main">
+                <div
+                    id="w-badge"
+                    class="watch-badge badge-delay"
+                    style="display: none"
+                ></div>
+                <div class="watch-text" id="w-text">
+                    Waiting for announcements…
+                </div>
+                <div class="watch-sub" id="w-sub"></div>
+            </div>
+
+            <div class="watch-log" id="w-log">
+                <div class="log-empty">No earlier announcements</div>
+            </div>
+
+            <div class="watch-footer">
+                <span class="footer-station" id="w-station-full"></span>
+                <button class="change-link" onclick="changePlatform()">
+                    change platform
+                </button>
+            </div>
+
+            <div class="pad"></div>
+        </div>
+
+        <!-- Demo controls -->
+        <div class="demo-bar" id="demo-bar" style="display: none">
+            <button class="demo-btn" onclick="fireOne()">
+                Next announcement
+            </button>
+            <button class="demo-btn" id="auto-btn" onclick="toggleAuto()">
+                Auto: off
+            </button>
+        </div>
+
+        <script src="announcements.js"></script>
+        <script>
+            const S = {
+                station: 'Königs Wusterhausen',
+                short: 'KW',
+                platforms: ['1', '2', '3', '4'],
+                platform: null,
+                lang: 'en',
+                autoTimer: null,
+                autoOn: false,
+            }
+
+            // Pick language from browser — no UI needed
+            const LANGS = {
+                en: 'English',
+                de: 'Deutsch',
+                tr: 'Türkçe',
+                fr: 'Français',
+                it: 'Italiano',
+                es: 'Español',
+                ja: '日本語',
+            }
+            const bl = (navigator.language || 'en').split('-')[0]
+            S.lang = LANGS[bl] ? bl : 'en'
+
+            const TYPE_LABELS = {
+                delay: 'Delayed',
+                platformChange: 'Platform change',
+                cancelled: 'Cancelled',
+                arriving: 'Arriving',
+            }
+            const TYPE_BADGE = {
+                delay: 'badge-delay',
+                platformChange: 'badge-change',
+                cancelled: 'badge-cancel',
+                arriving: 'badge-arriving',
+            }
+
+            // ── Boot ──
+            function boot() {
+                const saved = localStorage.getItem('tt-platform')
+                if (saved && S.platforms.includes(saved)) {
+                    S.platform = saved
+                    showWatch()
+                } else {
+                    showOnboard()
+                }
+                startClock()
+            }
+
+            // ── States ──
+            function activate(id) {
+                document
+                    .querySelectorAll('.state')
+                    .forEach(el => el.classList.remove('active'))
+                document.getElementById(id).classList.add('active')
+            }
+
+            function showOnboard() {
+                document.getElementById('ob-station').textContent = S.station
+                document.getElementById('ob-lang-name').textContent =
+                    LANGS[S.lang]
+                const grid = document.getElementById('platform-grid')
+                grid.innerHTML = ''
+                for (const p of S.platforms) {
+                    const btn = document.createElement('button')
+                    btn.className = 'platform-choice'
+                    btn.innerHTML = `<small>GLEIS</small>${p}`
+                    btn.onclick = () => selectPlatform(p)
+                    grid.appendChild(btn)
+                }
+                activate('state-onboard')
+                document.getElementById('demo-bar').style.display = 'none'
+            }
+
+            function selectPlatform(p) {
+                S.platform = p
+                localStorage.setItem('tt-platform', p)
+                showWatch()
+            }
+
+            function showWatch() {
+                document.getElementById('w-platform').textContent = S.platform
+                document.getElementById('w-station-short').textContent = S.short
+                document.getElementById('w-station-full').textContent =
+                    S.station
+                activate('state-watch')
+                document.getElementById('demo-bar').style.display = 'flex'
+            }
+
+            function changePlatform() {
+                localStorage.removeItem('tt-platform')
+                S.platform = null
+                S.autoOn = false
+                clearInterval(S.autoTimer)
+                document.getElementById('auto-btn').textContent = 'Auto: off'
+                document.getElementById('auto-btn').classList.remove('on')
+                document.getElementById('w-log').innerHTML =
+                    '<div class="log-empty">No earlier announcements</div>'
+                document.getElementById('w-badge').style.display = 'none'
+                document.getElementById('w-text').textContent =
+                    'Waiting for announcements…'
+                document.getElementById('w-sub').textContent = ''
+                showOnboard()
+            }
+
+            // ── Clock (updates every minute — no need for every second) ──
+            function startClock() {
+                const tick = () => {
+                    document.getElementById('w-clock').textContent =
+                        new Date().toLocaleTimeString('de-DE', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                        })
+                }
+                tick()
+                setInterval(tick, 10000)
+            }
+
+            // ── Announcements ──
+            function fireOne() {
+                const ann = generateAnnouncement()
+                if (ann.platform !== S.platform) return // not our platform
+
+                const text = ann.translations[S.lang] || ann.translations.en
+
+                // Update main display
+                const badge = document.getElementById('w-badge')
+                badge.className = 'watch-badge ' + TYPE_BADGE[ann.type]
+                badge.textContent =
+                    TYPE_LABELS[ann.type] +
+                    (ann.type === 'delay' ? ` +${ann.data.mins} min` : '')
+                badge.style.display = 'inline-block'
+
+                const mainText = document.getElementById('w-text')
+                mainText.textContent = text
+                mainText.classList.remove('blink')
+                void mainText.offsetWidth
+                mainText.classList.add('blink')
+
+                document.getElementById('w-sub').textContent = ann.data.line
+                    ? `${ann.data.line} · ${ann.timestamp}`
+                    : ann.timestamp
+
+                // Log
+                const log = document.getElementById('w-log')
+                const empty = log.querySelector('.log-empty')
+                if (empty) empty.remove()
+
+                const typeClass = {
+                    delay: 'delay-t',
+                    platformChange: 'change-t',
+                    cancelled: 'cancel-t',
+                    arriving: 'arrive-t',
+                }[ann.type]
+                const row = document.createElement('div')
+                row.className = 'log-row'
+                row.innerHTML = `<span class="log-time">${ann.timestamp}</span><span class="log-msg ${typeClass}">${text}</span>`
+                row.onclick = () => {
+                    mainText.textContent = text
+                    mainText.classList.remove('blink')
+                    void mainText.offsetWidth
+                    mainText.classList.add('blink')
+                }
+                log.insertBefore(row, log.firstChild)
+                while (log.children.length > 20) log.removeChild(log.lastChild)
+            }
+
+            // ── Auto ──
+            function toggleAuto() {
+                S.autoOn = !S.autoOn
+                const btn = document.getElementById('auto-btn')
+                btn.textContent = S.autoOn ? 'Auto: on' : 'Auto: off'
+                btn.classList.toggle('on', S.autoOn)
+                if (S.autoOn) {
+                    fireOne()
+                    // Try every 4s; ~25% chance of hitting current platform = realistic ~16s between announcements
+                    S.autoTimer = setInterval(fireOne, 4000)
+                } else {
+                    clearInterval(S.autoTimer)
+                }
+            }
+
+            if ('serviceWorker' in navigator)
+                navigator.serviceWorker.register('/sw.js').catch(() => {})
+
+            boot()
+        </script>
+    </body>
 </html>
